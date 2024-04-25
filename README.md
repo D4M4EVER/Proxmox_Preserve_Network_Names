@@ -1,12 +1,15 @@
-# Proxmox VE 8.2 Preserve Network Interface Naming
+# Proxmox VE 8.2 & Proxmox Backup Server 3.2
 
 # Preserve Network Interface Naming Script
 
-This Bash script is designed to preserve the current network interface naming scheme prior to upgrading to Proxmox VE 8.2. It prevents network interfaces from being automatically renamed from "enp1", "enp2", "enp3", etc., to "enp1p1", "enp2p2", "enp3p3", etc., preserving the previous network interface naming scheme.
+This Bash script is designed to preserve the current network interface naming scheme prior to upgrading to Proxmox VE 8.2 and Proxmox Backup Server 3.2.
+It prevents network interfaces from being automatically renamed from "enp1", "enp2", "enp3", etc., to "enp1p1", "enp2p2", "enp3p3", etc., preserving the previous network interface naming scheme.
 
 ## Purpose
 
-Proxmox VE 8.2 introduced changes to the default naming scheme for network interfaces, which may cause disruption to existing configurations relying on the previous naming convention. This script helps users maintain consistency in their network interface naming scheme when upgrading to Proxmox VE 8.2.
+Proxmox VE 8.2 and Proxmox Backup Server 3.2 upgraded to the lastet 6.8 kernal. 
+This causes the naming scheme for network interfaces to change, which can lead to invalid network configurations after a reboot. 
+This script helps users maintain consistency in their network interface naming scheme when upgrading to Proxmox VE 8.2 and Proxmox Backup Server 3.2.
 
 ## Usage
 
