@@ -45,7 +45,7 @@ filter_mac_addresses() {
 create_systemd_link_files() {
     local interface_names="$1"
     for interface_name in $interface_names; do
-        local link_file="/etc/systemd/network/99-$interface_name.link"
+        local link_file="/etc/systemd/network/10-$interface_name.link"
         local mac_address=$(ip -o link show "$interface_name" | awk '{print $(NF-2)}')
         cat << EOF > "$link_file"
 [Match]
