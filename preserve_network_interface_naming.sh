@@ -41,12 +41,36 @@ filter_mac_addresses() {
     echo "$filtered_mac_addresses"
 }
 
+# Function to extract MAC addresses excluding vmbr, lo, bond, and vlan interfaces
+extract_mac_addresses() {
+    ip -o link | awk '
+        /link\/ether/ && $2 !~ /vmbr|lo|bond|vlan/ {
+            found = 0
+            for (i = 1; i <= NF; i++) {
+                if ($i == "permaddr") {
+                    print $2, $(i+1)
+                    found = 1
+                    break
+                }
+            }
+            if (!found) {
+                sub(/brd/, "", $(NF-2))
+                print $2, $(NF-2)
+            }
+        }
+    '
+}
+
 # Function to create systemd link files for the raw interfaces
 create_systemd_link_files() {
     local interface_names="$1"
-    for interface_name in $interface_names; do
-        local link_file="/etc/systemd/network/10-$interface_name.link"
-        local mac_address=$(ip -o link show "$interface_name" | awk '{print $(NF-2)}')
+    local prefix=10  # Initialize the prefix variable
+    while IFS= read -r interface_info; do
+        local interface_name=$(echo "$interface_info" | awk '{print $1}')
+        # Remove ":" from the interface name
+        interface_name="${interface_name/:/}"
+        local mac_address=$(echo "$interface_info" | awk '{print $2}')
+        local link_file="/etc/systemd/network/${prefix}-${interface_name}.link"
         cat << EOF > "$link_file"
 [Match]
 MACAddress=$mac_address
@@ -56,8 +80,9 @@ Name=$interface_name
 EOF
         print_progress "Created systemd link file for interface $interface_name: $link_file"
         print_progress "Contents of $link_file:"
-        cat "$link_file" | sed 's/^/    /' # Log the contents of the created link file
-    done
+        cat "$link_file" | tee -a "$LOG_FILE" | sed 's/^/    /' # Log the contents of the created link file
+        ((prefix++))  # Increment the prefix for the next interface
+    done <<< "$(extract_mac_addresses)"
 }
 
 # Main function
@@ -75,28 +100,20 @@ main() {
         print_error_and_exit "$interfaces_file does not exist."
     fi
 
-    # Get the names of raw network interfaces from /etc/network/interfaces
-    interface_names=$(awk '/^iface/ && !/vmbr|lo|bond|vlan/ {print $2}' "$interfaces_file")
-
     # Print the names of the interfaces from /etc/network/interfaces
     print_progress "Raw interfaces defined in /etc/network/interfaces:"
-    echo "$interface_names"
+    awk '/^iface/ && !/vmbr|lo|bond|vlan/ {print $2}' "$interfaces_file" | tee -a "$LOG_FILE"
 
     # Get the MAC addresses of the raw network interfaces
     print_progress "Getting MAC addresses for raw interfaces..."
-    mac_addresses=$(ip -o link | awk '$2 !~ /vmbr|lo|bond|vlan/ {print $2, $(NF-2)}')
-    print_progress "MAC addresses for raw interfaces found:"
-    echo "$mac_addresses"
+    extract_mac_addresses | tee -a "$LOG_FILE"
 
     # Filter MAC addresses based on the interfaces defined in /etc/network/interfaces
-    filtered_mac_addresses=$(filter_mac_addresses "$mac_addresses")
-
-    # Print the filtered MAC addresses
     print_progress "Filtered MAC addresses:"
-    echo "$filtered_mac_addresses"
+    filter_mac_addresses "$(extract_mac_addresses)" | tee -a "$LOG_FILE"
 
     # Create systemd link files for the raw interfaces
-    create_systemd_link_files "$interface_names"
+    create_systemd_link_files "$(awk '/^iface/ && !/vmbr|lo|bond|vlan/ {print $2}' "$interfaces_file")"
 
     print_progress "Script completed."
 }
